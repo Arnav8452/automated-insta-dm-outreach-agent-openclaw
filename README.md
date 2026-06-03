@@ -1,38 +1,60 @@
 # Automated Instagram DM Outreach Agent (OpenClaw)
 
-This project is a 100% local, production-ready Instagram influencer negotiation engine built on the [OpenClaw framework](https://github.com/openclaw/openclaw). It strictly utilizes local storage (via Dockerized PostgreSQL and Redis) for state separation and runs Playwright locally in headful mode to avoid Meta API bans.
+This project is a 100% local, production-ready Instagram influencer negotiation engine built on the [OpenClaw framework](https://github.com/openclaw/openclaw). It adheres strictly to core data engineering principles to provide safe, rate-limited, and context-aware DM automation without relying on the official Meta API.
 
-## Architecture
-- **State Machine**: PostgreSQL manages the negotiation states (`PENDING`, `AWAITING_REPLY`, `IN_NEGOTIATION`, `WON`, `LOST`).
-- **Distributed Locking**: Redis ensures the agent never exceeds Instagram's 20 DMs/hour limit.
-- **Hybrid LLM Routing**: Fast intent triage combined with a sophisticated reasoning model for budget-constrained negotiation.
-- **Local Execution**: Playwright runs locally on your machine, retaining Instagram authentication cookies to avoid shadowbans.
+## Core System Features Implemented
 
-## Local Setup
+1. **Lead Ingestion & Enrichment Pipeline**
+   - **Implemented via**: `scripts/ingest_leads.ts`
+   - A robust data layer that parses target influencer handles from `leads.csv` and structures their metrics using safe PostgreSQL UPSERT transactions.
+
+2. **State Separation & Management**
+   - **Implemented via**: `db/init.sql` & PostgreSQL
+   - The state machine strictly governs the workflow (`PENDING`, `AWAITING_REPLY`, `IN_NEGOTIATION`, `WON`, `LOST`). The choice of LLM provider has absolutely zero impact on how thread contexts and campaigns are transactionally managed.
+
+3. **DM Automation Layer**
+   - **Implemented via**: `skills/instagram_dm/SKILL.md`
+   - Safely interacts with Instagram's messaging UI natively via **Puppeteer**. It utilizes robust ARIA/text selectors to bypass React obfuscation and retains local cookies to avoid shadowbans.
+
+4. **Multi-Turn Negotiation**
+   - **Implemented via**: `agents/influencer_scout/SOUL.md` & `messages` table
+   - Context retention is hardcoded into the database. The agent maintains deep memory of budget constraints and negotiation history across the lifecycle of the DM thread.
+
+---
+
+## Complete Guide: How to Use This With OpenClaw
 
 ### 1. Prerequisites
-- Docker & Docker Compose
-- Node.js (v20+)
-- A lightweight LLM API Key (e.g., Groq, OpenAI)
+- **Docker & Docker Compose** (For the Database and Redis locking).
+- **Node.js v20+** (For the OpenClaw daemon and Puppeteer).
+- A valid free-tier API Key for the LLM routing (Groq, Google Gemini, OpenRouter, etc.).
 
-### 2. Environment Variables
-Copy the example environment file:
+### 2. Configure Environment Variables
+Copy the example environment file and insert your API keys:
 ```bash
 cp .env.example .env
 ```
-Fill in your `API_KEY` in the `.env` file. The database and Redis URLs are pre-configured for the local Docker cluster.
+Update `.env` with your API keys. The PostgreSQL and Redis URLs are pre-configured to connect to your local Docker containers.
 
-### 3. Booting the Infrastructure
-Start the local PostgreSQL and Redis databases:
+### 3. Boot the Core Infrastructure
+Start the local PostgreSQL State Machine and Redis Distributed Lock Manager:
 ```bash
 docker compose up -d
 ```
-The database schema (`campaigns`, `influencers`, `outreach_threads`, `messages`) will automatically migrate on the first boot.
+*Note: The database schema (`campaigns`, `influencers`, `outreach_threads`, `messages`) will automatically migrate on the first boot.*
 
-### 4. Running the Agent
-Because this agent uses Playwright in headful mode for debugging and captcha-solving, it runs directly on your local machine:
+### 4. Ingest Target Leads
+Populate the system with target Instagram handles by editing the `leads.csv` file, then run the ingestion pipeline:
 ```bash
 npm install
+npx ts-node scripts/ingest_leads.ts leads.csv
+```
+*This will safely lock your leads into the database with a `PENDING` state.*
+
+### 5. Start the OpenClaw Daemon
+Finally, start the main gateway daemon. This triggers the `src/index.ts` script, which loads your Heartbeats, registers the Puppeteer DM Skill, and begins querying the database for the `PENDING` threads.
+```bash
 npm start
 ```
-Watch the Chromium window open and automate your negotiations safely!
+
+Watch the native Chromium window pop open automatically and seamlessly automate your influencer negotiations!
