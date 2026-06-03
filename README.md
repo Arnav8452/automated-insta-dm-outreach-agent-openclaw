@@ -12,11 +12,15 @@ This project is a 100% local, production-ready Instagram influencer negotiation 
    - **Implemented via**: `db/init.sql` & PostgreSQL
    - The state machine strictly governs the workflow (`PENDING`, `AWAITING_REPLY`, `IN_NEGOTIATION`, `WON`, `LOST`). The choice of LLM provider has zero impact on how thread contexts are transactionally managed.
 
-3. **DM Automation Layer (Native Exec Tool)**
+3. **Autonomous Scouting (AI Lead Generation)**
+   - **Implemented via**: `skills/influencer_scout/SKILL.md` & `scripts/inject_scouted_lead.ts`
+   - Instructs the OpenClaw agent to autonomously hunt for influencers using web search, evaluate them, and inject them into the PostgreSQL pipeline without human intervention.
+
+4. **DM Automation Layer (Native Exec Tool)**
    - **Implemented via**: `scripts/dm_sender.ts`
    - Safely interacts with Instagram's messaging UI natively via **Puppeteer**. It utilizes robust ARIA/text selectors to bypass React obfuscation and retains local cookies to avoid shadowbans.
 
-4. **Multi-Turn Negotiation (Native AgentSkills & Cron)**
+5. **Multi-Turn Negotiation (Native AgentSkills & Cron)**
    - **Implemented via**: `SOUL.md` (Workspace Persona) & `skills/instagram_dm/SKILL.md` (AgentSkill)
    - Integrated with the native **OpenClaw Cron Scheduler**. The engine automatically wakes up to process leads and uses its built-in `exec` tool to run the Puppeteer automation script autonomously.
 
@@ -48,11 +52,18 @@ npx ts-node scripts/login.ts
 ```
 *Log into the Chromium window that pops up, then press Ctrl+C in your terminal.*
 
-### 5. Ingest Target Leads
-Populate the system with target Instagram handles by editing the `leads.csv` file, then run:
+### 5. Add Target Leads (Two Methods)
+
+**Method A: Targeted Manual Injection (CSV)**
+Populate the system with specific targets by editing the `leads.csv` file, then run:
 ```bash
 npx ts-node scripts/ingest_leads.ts leads.csv
 ```
+
+**Method B: Autonomous AI Scouting**
+Simply boot the OpenClaw Daemon (Step 7) and chat with the bot in your terminal or web UI:
+> *"Find me 5 fitness influencers with 10k-50k followers and queue them up for outreach."*
+The `influencer_scout` skill will autonomously search the web and inject them into the database for you!
 
 ### 6. Register the Background Scheduler
 Hook into the native OpenClaw Gateway scheduler to wake the agent every 10 minutes:
