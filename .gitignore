@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+browser_data/
+repo_clone/
+.DS_Store
