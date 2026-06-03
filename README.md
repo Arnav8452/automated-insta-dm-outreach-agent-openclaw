@@ -77,3 +77,24 @@ Finally, boot the native OpenClaw engine. The daemon will parse your `SOUL.md` p
 npm start
 ```
 *(This triggers `npx openclaw gateway --workspace .`)*
+
+---
+
+## Troubleshooting: Compiling OpenClaw from Source
+If `npm install openclaw` fails on your machine due to corporate proxies or Node engine mismatches, you can bypass the registry and build the engine natively from source:
+
+```bash
+# 1. Clone the repository natively (bypassing strict proxy SSL)
+git -c http.sslVerify=false clone https://github.com/openclaw/openclaw.git repo_clone/openclaw
+
+# 2. Enter the workspace and disable strict-ssl for pnpm
+cd repo_clone/openclaw
+npm install -g pnpm
+pnpm config set strict-ssl false
+
+# 3. Build the core Gateway engine
+pnpm install
+pnpm openclaw setup
+pnpm build
+```
+*(Note: the `repo_clone/` directory is automatically ignored by git via `.gitignore`).*
