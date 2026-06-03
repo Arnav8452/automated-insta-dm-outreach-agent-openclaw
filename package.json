@@ -4,13 +4,14 @@
   "description": "Automated Instagram influencer outreach and negotiation engine.",
   "main": "index.js",
   "scripts": {
-    "start": "echo 'OpenClaw Daemon Starting...'",
+    "start": "npx openclaw gateway --workspace .",
     "build": "tsc"
   },
   "dependencies": {
     "csv-parser": "^3.2.1",
     "dotenv": "^17.4.2",
     "ioredis": "^5.3.2",
+    "openclaw": "^2026.5.28",
     "pg": "^8.11.3",
     "puppeteer": "^22.0.0"
   },
