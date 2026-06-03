@@ -1,10 +1,10 @@
 # OpenClaw Skill: Local Instagram DM Adapter
 
 ## Description
-A 100% local, API-agnostic skill written in TypeScript that wraps Playwright to safely send direct messages on Instagram. It interfaces directly with the PostgreSQL database to track message state and handles DOM-level errors gracefully.
+A 100% local, API-agnostic skill written in TypeScript that wraps Puppeteer to safely send direct messages on Instagram. It interfaces directly with the PostgreSQL database to track message state and handles DOM-level errors gracefully.
 
 ## Version
-`1.0.0`
+`2.0.0` (Puppeteer Migration)
 
 ## Inputs
 - `influencer_handle` (string): The Instagram username of the target.
@@ -13,7 +13,7 @@ A 100% local, API-agnostic skill written in TypeScript that wraps Playwright to 
 
 ## Script (TypeScript)
 ```typescript
-import { chromium, TimeoutError } from 'playwright';
+import puppeteer, { TimeoutError } from 'puppeteer';
 import { Client } from 'pg';
 import { SkillResponse, success, error } from 'openclaw-core/skill-response';
 
@@ -30,44 +30,47 @@ export async function sendInstagramDm(inputs: DMInput): Promise<SkillResponse> {
         return error("Missing required inputs.", "INVALID_INPUT");
     }
     
-    // Initialize DB connection for state updates
-    const pgClient = new Client({ connectionString: process.env.DATABASE_URL });
+    // Connect locally so testing native Node execution works seamlessly
+    const pgClient = new Client({ connectionString: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/openclaw_db' });
     await pgClient.connect();
     
     try {
         // 1. Launch persistent context to maintain authentication cookies
-        const browser = await chromium.launchPersistentContext(
-            "/app/browser_data/ig_session",
-            {
-                headless: false, // Run in headful/visible mode for debugging
-                slowMo: 300, // Human-like delays between actions
-                viewport: { width: 1280, height: 720 }
-            }
-        );
+        const browser = await puppeteer.launch({
+            userDataDir: "/app/browser_data/ig_session",
+            headless: false, // Run in headful/visible mode natively on OS for debugging
+            slowMo: 100, // Human-like delays between actions
+            defaultViewport: { width: 1280, height: 720 },
+            args: ['--no-sandbox', '--disable-setuid-sandbox'] // Ensures fallback Docker compatibility later
+        });
         
         try {
-            const page = browser.pages().length > 0 ? browser.pages()[0] : await browser.newPage();
+            const pages = await browser.pages();
+            const page = pages.length > 0 ? pages[0] : await browser.newPage();
             
             // 2. Navigate to the user's DM page directly
-            await page.goto(`https://www.instagram.com/direct/t/${influencer_handle}/`, { waitUntil: 'networkidle' });
+            await page.goto(`https://www.instagram.com/direct/t/${influencer_handle}/`, { waitUntil: 'networkidle2' });
             
-            // 3. Detect Action Blocks or Shadowbans
-            const actionBlocked = await page.locator("text='Action Blocked'").isVisible();
-            const tryAgain = await page.locator("text='Try Again Later'").isVisible();
+            // 3. Detect Action Blocks or Shadowbans robustly via text queries
+            // This avoids Instagram's obfuscated CSS React classes (e.g., .x1y123z)
+            const actionBlocked = await page.$("::-p-text(Action Blocked)");
+            const tryAgain = await page.$("::-p-text(Try Again Later)");
+            
             if (actionBlocked || tryAgain) {
                 throw new Error("Instagram Action Block detected.");
             }
                 
-            // 4. Target the message input box securely
-            const messageBox = page.locator("div[role='textbox']");
-            await messageBox.waitFor({ state: "visible", timeout: 15000 });
+            // 4. Target the message input box securely via ARIA attributes
+            // Role attributes rarely change, making this highly resilient to UI updates
+            const textboxSelector = "div[role='textbox']";
+            await page.waitForSelector(textboxSelector, { visible: true, timeout: 15000 });
             
             // 5. Type and send (simulating human input)
-            await messageBox.type(message_content, { delay: 75 }); // 75ms per keystroke
+            await page.type(textboxSelector, message_content, { delay: 75 }); // 75ms per keystroke
             await page.keyboard.press("Enter");
             
             // Wait briefly for the network request to complete
-            await page.waitForTimeout(2000);
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
             await pgClient.query('BEGIN');
             // 6. Log the successfully sent message to the PostgreSQL context table
@@ -95,7 +98,8 @@ export async function sendInstagramDm(inputs: DMInput): Promise<SkillResponse> {
     } catch (err: any) {
         await pgClient.query('ROLLBACK').catch(() => {});
         
-        if (err instanceof TimeoutError) {
+        // Catch specific Puppeteer Timeout errors indicative of bad auth or missing DOM
+        if (err instanceof TimeoutError || err.name === 'TimeoutError') {
             return error(
                 `Timeout interacting with DOM for ${influencer_handle}. Check browser auth state.`,
                 "DOM_TIMEOUT"

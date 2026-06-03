@@ -22,7 +22,7 @@ services:
       - redisdata:/data
 
   openclaw-daemon:
-    image: mcr.microsoft.com/playwright:v1.40.0-jammy
+    image: ghcr.io/puppeteer/puppeteer:latest
     restart: always
     depends_on:
       - postgres
