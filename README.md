@@ -58,25 +58,33 @@ $env:NODE_TLS_REJECT_UNAUTHORIZED="0"; npm start
 ```
 
 ### Step 3: Queue Leads & Register Automation
-Open a **second, separate PowerShell window** in the project folder to feed the database and register the autonomous cron jobs.
+Open a **second, separate PowerShell window** in the project folder to register the automation. You have 3 ways to feed leads into the pipeline:
 
-1. **Ingest your manual leads:**
+#### Option 1: Manual Ingestion
+If you have a curated list of targets, add them to `leads.csv` and run:
 ```powershell
 npx ts-node scripts/ingest_leads.ts
 ```
 
-2. **Register the Core Campaign Orchestrator (Runs every 10 mins):**
-```powershell
-npx openclaw cron create "*/10 * * * *" "Run 'npx ts-node scripts/get_pending_leads.ts' to fetch the next active lead. If their status is PENDING, send a personalized initial pitch using 'npx ts-node scripts/dm_sender.ts \"<handle>\" ''<message>'' \"<thread_id>\"'. If their status is AWAITING_REPLY, run 'npx ts-node scripts/check_replies.ts \"<handle>\" \"<thread_id>\"' to read their response, and use your advanced negotiation logic (defined in SKILL.md) to either counter-offer or use 'update_thread_status.ts' to mark the thread as COMPLETED or FAILED." --name "Campaign Orchestrator" --session isolated --no-deliver --light-context --tz "UTC"
-```
+#### Option 2: Live Agent Prompt (AI Scout)
+Ask the OpenClaw agent directly via the chat UI to hunt for influencers on the spot:
+> *"Scout Instagram to find 5 new tech/AI influencers. Extract their handles, and inject them into the pipeline using 'inject_scouted_lead.ts'."*
 
-3. **(Optional) Register the Autonomous AI Scout (Runs daily at 9AM):**
-If you want the OpenClaw Agent to autonomously hunt the web for *new* leads every morning without you lifting a finger:
+#### Option 3: Fully Autonomous Daily Cron Job
+Tell OpenClaw to wake up every morning at 9AM and find new leads automatically without you lifting a finger:
 ```powershell
 npx openclaw cron create "0 9 * * *" "Scout Instagram to find 5 new tech/AI influencers. Extract their handles, and inject them into the pipeline using 'inject_scouted_lead.ts'." --name "AI Lead Scout" --session isolated --no-deliver --light-context --tz "UTC"
 ```
 
-### Step 4: Watch it Negotiate!
+---
+
+### Step 4: Register the Campaign Orchestrator
+Once leads are flowing into the queue, register the core orchestrator. This cron job runs every 10 minutes to process the queue, send initial DMs, read replies, and negotiate deals.
+```powershell
+npx openclaw cron create "*/10 * * * *" "Run 'npx ts-node scripts/get_pending_leads.ts' to fetch the next active lead. If their status is PENDING, send a personalized initial pitch using 'npx ts-node scripts/dm_sender.ts \"<handle>\" ''<message>'' \"<thread_id>\"'. If their status is AWAITING_REPLY, run 'npx ts-node scripts/check_replies.ts \"<handle>\" \"<thread_id>\"' to read their response, and use your advanced negotiation logic (defined in SKILL.md) to either counter-offer or use 'update_thread_status.ts' to mark the thread as COMPLETED or FAILED." --name "Campaign Orchestrator" --session isolated --no-deliver --light-context --tz "UTC"
+```
+
+### Step 5: Watch it Negotiate!
 Once leads are queued, the Agent will automatically check for replies on its heartbeat schedule. When it detects a message, it uses its LLM brain to negotiate the deal!
 
 ![Agent Negotiation Demo](assets/whatsapp_demo.jpeg)
