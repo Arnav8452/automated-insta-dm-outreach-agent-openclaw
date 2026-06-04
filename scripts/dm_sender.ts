@@ -29,8 +29,19 @@ async function sendInstagramDm() {
             const pages = await browser.pages();
             const page = pages.length > 0 ? pages[0] : await browser.newPage();
             
-            // 2. Navigate to the user's DM page directly
-            await page.goto(`https://www.instagram.com/direct/t/${handle}/`, { waitUntil: 'networkidle2' });
+            // 2. Navigate to the user's profile
+            await page.goto(`https://www.instagram.com/${handle}/`, { waitUntil: 'networkidle2' });
+            
+            try {
+                // Find and click the "Message" button on their profile
+                // We use Puppeteer's text selector to find the button natively
+                const messageBtn = await page.waitForSelector("::-p-text(Message)", { visible: true, timeout: 10000 });
+                if (messageBtn) {
+                    await messageBtn.click();
+                }
+            } catch (e) {
+                throw new Error(`Could not find a Message button on @${handle}'s profile. They may not accept DMs.`);
+            }
             
             // 3. Detect Action Blocks or Shadowbans robustly via text queries
             const actionBlocked = await page.$("::-p-text(Action Blocked)");
@@ -42,7 +53,12 @@ async function sendInstagramDm() {
                 
             // 4. Target the message input box securely via ARIA attributes
             const textboxSelector = "div[role='textbox']";
-            await page.waitForSelector(textboxSelector, { visible: true, timeout: 15000 });
+            try {
+                await page.waitForSelector(textboxSelector, { visible: true, timeout: 15000 });
+            } catch (timeoutErr) {
+                await page.screenshot({ path: 'assets/timeout_screenshot.png' });
+                throw timeoutErr;
+            }
             
             // 5. Type and send (simulating human input)
             await page.type(textboxSelector, message, { delay: 75 }); // 75ms per keystroke
@@ -81,6 +97,16 @@ async function sendInstagramDm() {
             try {
                 await pgClient.query(
                     "UPDATE outreach_threads SET status = 'RATE_LIMITED' WHERE id = $1",
+                    [threadId]
+                );
+            } catch (dbErr) {
+                // Ignore DB fallback error
+            }
+        } else if (errorMsg.includes("They may not accept DMs")) {
+            try {
+                // Mark thread as failed so the cron job doesn't endlessly retry it
+                await pgClient.query(
+                    "UPDATE outreach_threads SET status = 'FAILED' WHERE id = $1",
                     [threadId]
                 );
             } catch (dbErr) {
