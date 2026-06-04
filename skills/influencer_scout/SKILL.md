@@ -25,3 +25,4 @@ npx ts-node scripts/inject_scouted_lead.ts "<handle>" "<niche>" "<followers>"
 1. Do not include the `@` symbol in the `<handle>` argument when injecting.
 2. The injection script will safely handle duplicates natively in PostgreSQL. You do not need to query the database manually before injecting.
 3. Once injected, the autonomous Cron Job (`Campaign Orchestrator`) will automatically detect the new `PENDING` threads and take over the DM automation. You do not need to send the messages yourself during the scouting phase.
+4. **DO NOT** attempt to set or pass environment variables (like `DATABASE_URL`) in your `exec` command. The scripts are hardcoded to correctly fall back to the local database when running natively. Just run the exact raw command provided.

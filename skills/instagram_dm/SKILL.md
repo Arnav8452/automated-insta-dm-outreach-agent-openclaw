@@ -22,3 +22,4 @@ npx ts-node scripts/dm_sender.ts "<influencer_handle>" "<message_content>" "<thr
 1. Do not use unescaped double quotes inside the `<message_content>` argument if they would break the bash string wrapper.
 2. You do NOT need to manually update PostgreSQL. The `dm_sender.ts` script will automatically log the message into the `messages` table and update the `outreach_threads` status to `AWAITING_REPLY` upon success.
 3. If the script throws an error mentioning "Action Blocked", gracefully pause the campaign and notify the user that we hit Meta's rate limits.
+4. **DO NOT** attempt to set or pass environment variables (like `DATABASE_URL`) in your `exec` command. The scripts natively handle their own database connections. Run the raw commands exactly as written.
