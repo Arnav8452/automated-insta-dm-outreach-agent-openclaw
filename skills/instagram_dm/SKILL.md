@@ -12,11 +12,31 @@ npx ts-node scripts/get_pending_leads.ts
 ```
 This script will return a JSON list of threads where the status is `PENDING` or `AWAITING_REPLY`.
 
-### Step 2: Dispatch a Single Message
-Review the JSON output. You must pick **ONLY THE FIRST LEAD** returned. Draft a highly personalized pitch for that specific lead, then run the DM sender script natively:
+### Step 2: Dispatch a Single Message or Check Replies
+Review the JSON output. You must pick **ONLY THE FIRST LEAD** returned. Do NOT process more than one lead per execution.
+
+**If the status is `PENDING` (New Lead):**
+Draft a highly personalized initial pitch for that specific lead (using your core Persona and the `max_authorized_budget` limit), then run the DM sender script natively:
 ```bash
 npx ts-node scripts/dm_sender.ts "<influencer_handle>" '<message_content>' "<thread_id>"
 ```
+
+**If the status is `AWAITING_REPLY` (Active Negotiation):**
+You must read the chat history to see if they replied to your previous message. Run the inbox scraper natively:
+```bash
+npx ts-node scripts/check_replies.ts "<influencer_handle>" "<thread_id>"
+```
+The script will output the recent chat history as JSON. Read it carefully.
+- **If they haven't replied:** Do nothing. We will wait.
+- **If they want to negotiate:** Draft a counter-offer within your `max_authorized_budget` constraint and send it using the `dm_sender.ts` script.
+- **If they accepted a deal:** Clear them from the queue by setting the thread to COMPLETED:
+  ```bash
+  npx ts-node scripts/update_thread_status.ts "<thread_id>" "COMPLETED"
+  ```
+- **If they rejected or asked to stop:** Clear them from the queue by setting the thread to FAILED:
+  ```bash
+  npx ts-node scripts/update_thread_status.ts "<thread_id>" "FAILED"
+  ```
 
 ### Important Execution Rules
 1. **CRITICAL POWERSHELL RULE:** You must wrap the `<message_content>` argument in SINGLE QUOTES (`'...'`), NOT double quotes! Since this runs on Windows PowerShell, double quotes will cause it to crash if you include budget numbers (e.g. `$1000` evaluates as an empty variable). Use single quotes to ensure it treats the `$` as a literal string. If you use single quotes inside your message (e.g. `I'm`), escape them!

@@ -4,7 +4,7 @@
 # This runs every 10 minutes to grab PENDING or AWAITING_REPLY threads and execute the Instagram DM automation.
 
 openclaw cron create "*/10 * * * *" \
-  "Run 'npx ts-node scripts/get_pending_leads.ts' using your exec tool to fetch the JSON queue of pending leads. Then, for each lead in the output, draft a personalized DM using the max_authorized_budget constraint, and use your exec tool to run 'npx ts-node scripts/dm_sender.ts \"<handle>\" '<message>' \"<thread_id>\"' to physically send the DM via Puppeteer." \
+  "Run 'npx ts-node scripts/get_pending_leads.ts' to fetch the next active lead. If their status is PENDING, send a personalized initial pitch using 'npx ts-node scripts/dm_sender.ts \"<handle>\" '<message>' \"<thread_id>\"'. If their status is AWAITING_REPLY, run 'npx ts-node scripts/check_replies.ts \"<handle>\" \"<thread_id>\"' to read their response, and use your advanced negotiation logic (defined in SKILL.md) to either counter-offer or use 'update_thread_status.ts' to mark the thread as COMPLETED or FAILED." \
   --name "Campaign Orchestrator" \
   --session isolated \
   --no-deliver \
