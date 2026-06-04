@@ -10,7 +10,7 @@ When the user asks you to find, scout, or queue up influencers for a specific ni
 *   **Alternative:** ONLY IF you specifically need to bypass Instagram's login wall to search directly, use your `Exec` tool to run: `powershell -Command "npx ts-node scripts/scout_instagram.ts '<niche>'"`
 
 ### Step 2: Extract (Reasoning & Acting)
-*   **Action:** Use the `web_fetch` tool to read the contents of the URLs you found in Step 1.
+*   **Action:** Use the `web_fetch` tool to read the contents of the URLs you found in Step 1. Ensure you pass the parameters `mode: "text"` and limit it to roughly `max: 5000` characters if the tool supports it to avoid context limits.
 *   **Reasoning:** Analyze the text to identify the exact Instagram handle, niche, and estimated follower count of each influencer. Do NOT try to run any local scripts for this step.
 
 ### Step 3: Inject (Reasoning & Acting)
