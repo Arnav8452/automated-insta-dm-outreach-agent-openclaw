@@ -7,6 +7,8 @@ openclaw cron create "*/10 * * * *" \
   "Check the PostgreSQL database for any outreach_threads where status is 'PENDING' or 'AWAITING_REPLY'. If they need a message sent, draft it using the max_authorized_budget constraint, and use the 'exec' tool to run scripts/dm_sender.ts to physically send the DM via Puppeteer." \
   --name "Campaign Orchestrator" \
   --session isolated \
+  --no-deliver \
+  --light-context \
   --tz "UTC"
 
 echo "Successfully registered the Campaign Orchestrator cron job with the OpenClaw daemon!"
