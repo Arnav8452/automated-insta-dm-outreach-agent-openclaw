@@ -33,13 +33,19 @@ async function sendInstagramDm() {
             await page.goto(`https://www.instagram.com/${handle}/`, { waitUntil: 'networkidle2' });
             
             try {
-                // Find and click the "Message" button on their profile
-                // We use Puppeteer's text selector to find the button natively
-                const messageBtn = await page.waitForSelector("::-p-text(Message)", { visible: true, timeout: 10000 });
-                if (messageBtn) {
-                    await messageBtn.click();
-                }
+                // Find and click the "Message" button natively via DOM to bypass CSS/Shadow DOM obscurities
+                await page.waitForFunction(() => {
+                    const elements = Array.from(document.querySelectorAll('div[role="button"], a[role="link"], button'));
+                    return elements.some(el => el.textContent?.trim().toLowerCase() === 'message');
+                }, { timeout: 10000 });
+                
+                await page.evaluate(() => {
+                    const elements = Array.from(document.querySelectorAll('div[role="button"], a[role="link"], button'));
+                    const msgBtn = elements.find(el => el.textContent?.trim().toLowerCase() === 'message');
+                    if (msgBtn) (msgBtn as HTMLElement).click();
+                });
             } catch (e) {
+                await page.screenshot({ path: 'assets/profile_screenshot.png' });
                 throw new Error(`Could not find a Message button on @${handle}'s profile. They may not accept DMs.`);
             }
             
