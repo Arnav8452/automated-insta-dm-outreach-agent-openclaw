@@ -35,6 +35,8 @@ To achieve full autonomy, we built a suite of custom **ReAct Tools** (executable
 - **`scout_instagram.ts`**: A headless Puppeteer tool that allows the AI to securely query Instagram's internal search API using your saved session cookies, completely bypassing Cloudflare blocks and scrapers.
 - **`get_pending_leads.ts`**: A database reader tool that allows the AI to natively query the PostgreSQL queue so it can autonomously pull its own workload without human intervention.
 - **`dm_sender.ts`**: A browser automation tool that allows the AI to securely drive a physical Chromium instance to dispatch Instagram DMs via the web UI.
+- **`check_replies.ts`**: An inbox scraper tool that navigates to active DM threads and natively extracts chat bubbles so the agent can read and counter-offer during active negotiations.
+- **`update_thread_status.ts`**: A database state manager tool that allows the agent to safely flag threads as COMPLETED or FAILED to cleanly remove them from the active pipeline.
 - **`inject_scouted_lead.ts`**: A pipeline tool that allows the AI to safely UPSERT new leads into the database and initialize `PENDING` threads.
 
 ---
@@ -54,7 +56,10 @@ npx ts-node scripts/login.ts
 ### Step 2: Boot the OpenClaw Engine & Background Scheduler
 Register the background cron job that will manage all your DM negotiations, then start the OpenClaw Gateway daemon!
 ```powershell
-npx openclaw cron create "*/10 * * * *" "Run 'npx ts-node scripts/get_pending_leads.ts' using your exec tool to fetch the JSON queue of pending leads. Then, for each lead in the output, draft a personalized DM using the max_authorized_budget constraint, and use your exec tool to run 'npx ts-node scripts/dm_sender.ts \"<handle>\" '<message>' \"<thread_id>\"' to physically send the DM via Puppeteer." --name "Campaign Orchestrator" --session isolated --no-deliver --light-context --tz "UTC"
+# Register the Campaign Orchestrator cron payload using the setup script
+./scripts/register_cron.sh
+
+# Boot the OpenClaw Daemon
 $env:NODE_TLS_REJECT_UNAUTHORIZED="0"; npm start
 ```
 > [!NOTE]
