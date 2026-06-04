@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Client } from 'pg';
 
 const handle = process.argv[2];
@@ -14,12 +15,18 @@ async function checkReplies() {
     await pgClient.connect();
     
     try {
+        puppeteer.use(StealthPlugin());
+        
         const browser = await puppeteer.launch({
             userDataDir: "./browser_data/ig_session",
             headless: false,
             slowMo: 100,
             defaultViewport: { width: 1280, height: 720 },
-            args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+                '--disable-blink-features=AutomationControlled'
+            ] 
         });
         
         try {
@@ -55,15 +62,39 @@ async function checkReplies() {
             
             // Scrape messages
             const chatMessages = await page.evaluate(() => {
-                const rows = Array.from(document.querySelectorAll('div[role="row"]'));
-                return rows.slice(-10).map(row => {
-                    // Incoming messages typically have an img tag (profile pic), outgoing do not.
-                    const hasProfilePic = row.querySelector('img') !== null;
-                    return {
-                        sender: hasProfilePic ? 'influencer' : 'agent',
-                        text: row.textContent?.trim()
-                    };
-                }).filter(m => m.text);
+                const messages: any[] = [];
+                // Find all text nodes in the chat area
+                const allTextDivs = Array.from(document.querySelectorAll('div[dir="auto"]')).filter(d => {
+                    const text = d.textContent?.trim();
+                    return text && text.length > 0 && text !== 'Message' && text !== 'Following';
+                });
+                
+                for (const div of allTextDivs) {
+                    const text = div.textContent?.trim();
+                    if (!text) continue;
+                    
+                    // Climb the DOM tree to find alignment
+                    let el: HTMLElement | null = div as HTMLElement;
+                    let isIncoming = true; // Default to incoming
+                    
+                    for (let i = 0; i < 6; i++) {
+                        if (!el) break;
+                        const style = window.getComputedStyle(el);
+                        // Outgoing messages are aligned to flex-end (right side)
+                        if (style.justifyContent === 'flex-end' || style.alignItems === 'flex-end') {
+                            isIncoming = false;
+                            break;
+                        }
+                        el = el.parentElement;
+                    }
+                    
+                    messages.push({
+                        sender: isIncoming ? 'influencer' : 'agent',
+                        text: text
+                    });
+                }
+                
+                return messages;
             });
             
             // Log new incoming messages to PostgreSQL

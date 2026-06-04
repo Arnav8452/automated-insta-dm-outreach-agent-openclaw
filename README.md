@@ -2,27 +2,25 @@
 
 This project is a 100% local, production-ready Instagram influencer negotiation engine built natively on the [OpenClaw Framework](https://github.com/openclaw/openclaw). It adheres strictly to core data engineering principles to provide safe, rate-limited, and context-aware DM automation without relying on the official Meta API.
 
-## Core System Features Implemented
+## 🌟 Core System Features Implemented
 
-1. **Lead Ingestion & Enrichment Pipeline**
-   - **Implemented via**: `scripts/ingest_leads.ts`
-   - Parses target influencer handles from `leads.csv` and structures their metrics using safe PostgreSQL UPSERT transactions.
+1. **Smart Stealth DOM Pipeline**
+   - Completely evades Instagram Action Blocks and bot detectors using `puppeteer-extra-plugin-stealth` natively.
+   - Idempotent execution allows the agent to safely navigate complex DOM states without crashing.
 
-2. **State Separation & Management**
-   - **Implemented via**: `db/init.sql` & PostgreSQL
-   - The state machine strictly governs the workflow (`PENDING`, `AWAITING_REPLY`, `IN_NEGOTIATION`, `WON`, `LOST`). The choice of LLM provider has zero impact on how thread contexts are transactionally managed.
+2. **Waitlist & Pipeline Management**
+   - **Smart Three-Case Logic:** Automatically determines if an account is public (direct DM), public but requires following (follow + DM), or private (follow + Waitlist).
+   - If a target is private, they are flagged as `WAITLISTED`. The OpenClaw agent seamlessly checks the waitlist on a heartbeat schedule to follow up once approved.
 
-3. **Autonomous Scouting (AI Lead Generation)**
-   - **Implemented via**: `skills/influencer_scout/SKILL.md` & `scripts/inject_scouted_lead.ts`
-   - Instructs the OpenClaw agent to autonomously hunt for influencers using web search, evaluate them, and inject them into the PostgreSQL pipeline without human intervention.
+3. **Auto-Cadence Follow-Ups**
+   - Automatically schedules and manages follow-up DMs to maximize response rates without spamming, storing exact cadence timestamps in the database.
 
-4. **DM Automation Layer (Native Exec Tool)**
-   - **Implemented via**: `scripts/dm_sender.ts`
-   - Safely interacts with Instagram's messaging UI natively via **Puppeteer**. It utilizes robust ARIA/text selectors to bypass React obfuscation and retains local cookies to avoid shadowbans.
+4. **Multi-Turn LLM Negotiation**
+   - Powered by the OpenClaw Agent, the engine autonomously reads incoming replies and strategically counter-offers based on the `max_authorized_budget` set in the database queue.
+   
+5. **Stateful Database Queue System**
+   - The entire pipeline is heavily resilient and stateless, backed by PostgreSQL. The database serves as the absolute source of truth for the queue (`WAITLISTED`, `AWAITING_REPLY`, etc.), allowing the Agent to pick up exactly where it left off on the next heartbeat.
 
-5. **Multi-Turn Negotiation (Native AgentSkills & Cron)**
-   - **Implemented via**: `SOUL.md` (Workspace Persona) & `skills/instagram_dm/SKILL.md` (AgentSkill)
-   - Integrated with the native **OpenClaw Cron Scheduler**. The engine automatically wakes up to process leads and uses its built-in `exec` tool to run the Puppeteer automation script autonomously.
 ## 🛠️ Custom ReAct Tools & AgentSkills
 
 To achieve full autonomy, we built a suite of custom **ReAct Tools** (executable scripts) and **AgentSkills** (AI logic) that the OpenClaw agent uses to interact with the world:
@@ -32,12 +30,12 @@ To achieve full autonomy, we built a suite of custom **ReAct Tools** (executable
 - **`instagram_dm`**: Instructs the agent on how to process its own database queue, personalize pitches, negotiate budgets, and dispatch messages.
 
 ### ReAct Tools (Native Scripts)
-- **`scout_instagram.ts`**: A headless Puppeteer tool that allows the AI to securely query Instagram's internal search API using your saved session cookies, completely bypassing Cloudflare blocks and scrapers.
-- **`get_pending_leads.ts`**: A database reader tool that allows the AI to natively query the PostgreSQL queue so it can autonomously pull its own workload without human intervention.
-- **`dm_sender.ts`**: A browser automation tool that allows the AI to securely drive a physical Chromium instance to dispatch Instagram DMs via the web UI.
+- **`dm_sender.ts`**: A stealth browser automation tool that dispatches Instagram DMs natively via the web UI while evading bot detection.
 - **`check_replies.ts`**: An inbox scraper tool that navigates to active DM threads and natively extracts chat bubbles so the agent can read and counter-offer during active negotiations.
-- **`update_thread_status.ts`**: A database state manager tool that allows the agent to safely flag threads as COMPLETED or FAILED to cleanly remove them from the active pipeline.
-- **`inject_scouted_lead.ts`**: A pipeline tool that allows the AI to safely UPSERT new leads into the database and initialize `PENDING` threads.
+- **`check_waitlist.ts`**: Queries the database to retrieve all influencers pending follow approval.
+- **`check_cadence.ts`**: Queries the database to fetch influencers due for an auto-cadence follow-up.
+- **`get_active_threads.ts`**: Allows the AI to natively query the PostgreSQL queue for active negotiations.
+- **`inject_scouted_lead.ts`**: Safely UPSERTs new leads into the database and initializes `PENDING` threads.
 
 ---
 
@@ -53,24 +51,17 @@ docker compose up -d
 npx ts-node scripts/login.ts
 ```
 
-### Step 2: Boot the OpenClaw Engine & Background Scheduler
-Register the background cron job that will manage all your DM negotiations, then start the OpenClaw Gateway daemon!
+### Step 2: Boot the OpenClaw Engine
+Boot the OpenClaw Gateway daemon so it can begin processing its heartbeat queue!
 ```powershell
-# Register the Campaign Orchestrator cron payload using the setup script
-./scripts/register_cron.sh
-
-# Boot the OpenClaw Daemon
 $env:NODE_TLS_REJECT_UNAUTHORIZED="0"; npm start
 ```
-> [!NOTE]
-> **Linking OpenClaw to this Tool:** The `npm start` command above overrides the default `openclaw gateway` behavior to permanently link the daemon to this repository. This allows it to automatically discover our custom `SOUL.md` persona and AgentSkills!
 
-### Step 3: Command the Agent!
-Open your OpenClaw Chat UI and give the agent its first assignment:
-> *"Scout 3 fitness influencers on Instagram, extract their handles and estimated followers, and queue them up for outreach."*
+### Step 3: Watch it Negotiate!
+Once leads are queued, the Agent will automatically check for replies on its heartbeat schedule. When it detects a message, it uses its LLM brain to negotiate the deal!
 
 **The Result:**
-![OpenClaw Agent Execution](assets/chat_demo.png)
+![OpenClaw Agent Negotiation](assets/chat_demo.png)
 ![OpenClaw Scout Execution](assets/scout_demo.png)
 ![OpenClaw Injection Execution](assets/injection_demo.png)
 ![OpenClaw Cron Orchestrator](assets/cron_demo.png)
@@ -80,28 +71,18 @@ Open your OpenClaw Chat UI and give the agent its first assignment:
 ## 🛑 Troubleshooting Common Errors
 
 ### `ECONNREFUSED 127.0.0.1:5432`
-If your agent or cron job crashes with this error, it means the PostgreSQL database is not running. 
-**Fix:** Ensure **Docker Desktop** is open and running on your machine, then open your terminal in this project folder and run `docker compose up -d`.
-
-### `Channel is required (no configured channels detected)`
-If the "Campaign Orchestrator" cron job crashes with this error, it means the job was accidentally configured to announce its completion but you haven't linked a Slack/Discord channel to your daemon.
-**Fix:** Open the OpenClaw Cron UI, click **Edit** on the job, and change **Delivery** to `none`. Alternatively, delete the job and recreate it using our `./scripts/register_cron.sh` script, which natively includes the `--no-deliver` flag to prevent this.
+If your agent crashes with this error, it means the PostgreSQL database is not running. 
+**Fix:** Ensure **Docker Desktop** is open and running on your machine, then run `docker compose up -d`.
 
 ### Compiling OpenClaw from Source
 If `npm install openclaw` fails on your machine due to corporate proxies or Node engine mismatches, you can bypass the registry and build the engine natively from source:
 
 ```bash
-# 1. Clone the repository natively (bypassing strict proxy SSL)
 git -c http.sslVerify=false clone https://github.com/openclaw/openclaw.git repo_clone/openclaw
-
-# 2. Enter the workspace and disable strict-ssl for pnpm
 cd repo_clone/openclaw
 npm install -g pnpm
 pnpm config set strict-ssl false
-
-# 3. Build the core Gateway engine
 pnpm install
 pnpm openclaw setup
 pnpm build
 ```
-*(Note: the `repo_clone/` directory is automatically ignored by git via `.gitignore`).*

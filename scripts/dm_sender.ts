@@ -1,4 +1,6 @@
-import puppeteer, { TimeoutError } from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { TimeoutError } from 'puppeteer';
 import { Client } from 'pg';
 
 const handle = process.argv[2];
@@ -16,13 +18,19 @@ async function sendInstagramDm() {
     await pgClient.connect();
     
     try {
+        puppeteer.use(StealthPlugin());
+        
         // 1. Launch persistent context to maintain authentication cookies
         const browser = await puppeteer.launch({
             userDataDir: "./browser_data/ig_session",
             headless: false, // Run in headful/visible mode natively on OS
             slowMo: 100, // Human-like delays between actions
             defaultViewport: { width: 1280, height: 720 },
-            args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+                '--disable-blink-features=AutomationControlled'
+            ] 
         });
         
         try {
@@ -32,21 +40,94 @@ async function sendInstagramDm() {
             // 2. Navigate to the user's profile
             await page.goto(`https://www.instagram.com/${handle}/`, { waitUntil: 'networkidle2' });
             
+            // Smart Three-Case Logic
+            let msgFound = false;
             try {
-                // Find and click the "Message" button natively via DOM to bypass CSS/Shadow DOM obscurities
+                // Try to find message button immediately
                 await page.waitForFunction(() => {
                     const elements = Array.from(document.querySelectorAll('div[role="button"], a[role="link"], button'));
                     return elements.some(el => el.textContent?.trim().toLowerCase() === 'message');
-                }, { timeout: 10000 });
-                
+                }, { timeout: 3000 });
+                msgFound = true;
+            } catch (e) {
+                // Message button not found immediately
+            }
+
+            if (msgFound) {
+                // Case 1: Direct DM
                 await page.evaluate(() => {
                     const elements = Array.from(document.querySelectorAll('div[role="button"], a[role="link"], button'));
                     const msgBtn = elements.find(el => el.textContent?.trim().toLowerCase() === 'message');
                     if (msgBtn) (msgBtn as HTMLElement).click();
                 });
-            } catch (e) {
-                await page.screenshot({ path: 'assets/profile_screenshot.png' });
-                throw new Error(`Could not find a Message button on @${handle}'s profile. They may not accept DMs.`);
+            } else {
+                // Look for Follow button
+                let followFound = false;
+                try {
+                    await page.waitForFunction(() => {
+                        const elements = Array.from(document.querySelectorAll('div[role="button"], button'));
+                        return elements.some(el => el.textContent?.trim().toLowerCase() === 'follow');
+                    }, { timeout: 3000 });
+                    followFound = true;
+                } catch (e) {}
+
+                if (followFound) {
+                    await page.evaluate(() => {
+                        const elements = Array.from(document.querySelectorAll('div[role="button"], button'));
+                        const followBtn = elements.find(el => el.textContent?.trim().toLowerCase() === 'follow');
+                        if (followBtn) (followBtn as HTMLElement).click();
+                    });
+                    
+                    // Wait to see if it was accepted instantly (public account) or requested (private)
+                    await new Promise(r => setTimeout(r, 2000));
+                    
+                    // Check for Message button again
+                    try {
+                        await page.waitForFunction(() => {
+                            const elements = Array.from(document.querySelectorAll('div[role="button"], a[role="link"], button'));
+                            return elements.some(el => el.textContent?.trim().toLowerCase() === 'message');
+                        }, { timeout: 3000 });
+                        
+                        // Case 2: Follow + DM
+                        await page.evaluate(() => {
+                            const elements = Array.from(document.querySelectorAll('div[role="button"], a[role="link"], button'));
+                            const msgBtn = elements.find(el => el.textContent?.trim().toLowerCase() === 'message');
+                            if (msgBtn) (msgBtn as HTMLElement).click();
+                        });
+                    } catch (e) {
+                        // Case 3: Follow + Waitlist (Private Account)
+                        await pgClient.query('BEGIN');
+                        await pgClient.query(
+                            "UPDATE outreach_threads SET status = 'WAITLISTED', last_action_at = NOW() WHERE id = $1",
+                            [threadId]
+                        );
+                        await pgClient.query('COMMIT');
+                        console.log(`WAITLISTED: Follow request sent to @${handle}, waiting for approval.`);
+                        await browser.close();
+                        await pgClient.end();
+                        process.exit(0);
+                    }
+                } else {
+                    // Look for Requested button
+                    let requestedFound = false;
+                    try {
+                        await page.waitForFunction(() => {
+                            const elements = Array.from(document.querySelectorAll('div[role="button"], button'));
+                            return elements.some(el => el.textContent?.trim().toLowerCase() === 'requested');
+                        }, { timeout: 2000 });
+                        requestedFound = true;
+                    } catch(e) {}
+                    
+                    if (requestedFound) {
+                        console.log(`STILL WAITLISTED: Follow request to @${handle} is still pending approval.`);
+                        await browser.close();
+                        process.exit(0);
+                    } else {
+                        // Neither Follow, Message, nor Requested found
+                        await page.screenshot({ path: 'assets/profile_screenshot.png' });
+                        throw new Error(`Could not find a Message, Follow, or Requested button on @${handle}'s profile. They may not accept DMs.`);
+                    }
+                }
             }
             
             // 3. Detect Action Blocks or Shadowbans robustly via text queries
@@ -80,9 +161,9 @@ async function sendInstagramDm() {
                 [threadId, message]
             );
             
-            // Update the thread state to AWAITING_REPLY
+            // Update the thread state to AWAITING_REPLY and schedule first auto-cadence
             await pgClient.query(
-                "UPDATE outreach_threads SET status = 'AWAITING_REPLY', last_action_at = NOW() WHERE id = $1",
+                "UPDATE outreach_threads SET status = 'AWAITING_REPLY', last_action_at = NOW(), next_followup_at = NOW() + INTERVAL '24 hours' WHERE id = $1",
                 [threadId]
             );
             await pgClient.query('COMMIT');
