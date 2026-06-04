@@ -7,10 +7,11 @@ async function getPendingLeads() {
     
     try {
         // We only want threads that are PENDING (new) or AWAITING_REPLY (needing follow up)
+        // Join with the correct 'influencers' table and extract niche from metadata
         const query = `
-            SELECT t.id as thread_id, t.status, t.max_authorized_budget, i.handle, i.niche, i.estimated_followers 
+            SELECT t.id as thread_id, t.status, t.max_authorized_budget, i.handle, i.metadata->>'niche' as niche, i.follower_count as estimated_followers 
             FROM outreach_threads t
-            JOIN target_influencers i ON t.influencer_handle = i.handle
+            JOIN influencers i ON t.influencer_id = i.id
             WHERE t.status IN ('PENDING', 'AWAITING_REPLY')
             LIMIT 5;
         `;

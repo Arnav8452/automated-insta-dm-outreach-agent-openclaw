@@ -16,27 +16,44 @@ async function injectLead() {
     try {
         await pgClient.query('BEGIN');
         
-        // 1. Insert or update the target influencer
-        await pgClient.query(
-            `INSERT INTO target_influencers (handle, niche, estimated_followers) 
+        // 1. Insert or update the target influencer using the correct 'influencers' table
+        const infRes = await pgClient.query(
+            `INSERT INTO influencers (handle, follower_count, metadata) 
              VALUES ($1, $2, $3) 
              ON CONFLICT (handle) DO UPDATE 
-             SET niche = EXCLUDED.niche, estimated_followers = EXCLUDED.estimated_followers`,
-            [handle, niche, followers]
+             SET follower_count = EXCLUDED.follower_count, metadata = EXCLUDED.metadata
+             RETURNING id`,
+            [handle, followers, JSON.stringify({ niche })]
         );
+        const influencerId = infRes.rows[0].id;
         
         // 2. Check if a thread already exists
         const threadCheck = await pgClient.query(
-            "SELECT id FROM outreach_threads WHERE influencer_handle = $1",
-            [handle]
+            "SELECT id FROM outreach_threads WHERE influencer_id = $1",
+            [influencerId]
         );
         
         if (threadCheck.rows.length === 0) {
+            // Ensure a campaign exists before making a thread
+            let campaignId: string;
+            const existingCampaign = await pgClient.query(`SELECT id FROM campaigns LIMIT 1`);
+            
+            if (existingCampaign.rows.length > 0) {
+                campaignId = existingCampaign.rows[0].id;
+            } else {
+                const campaignRes = await pgClient.query(`
+                    INSERT INTO campaigns (name, total_budget) 
+                    VALUES ('Automated Scouted Campaign', 10000.00) 
+                    RETURNING id;
+                `);
+                campaignId = campaignRes.rows[0].id;
+            }
+
             // 3. Create a PENDING thread so the cron job picks it up
             await pgClient.query(
-                `INSERT INTO outreach_threads (influencer_handle, status, max_authorized_budget) 
-                 VALUES ($1, 'PENDING', 100)`,
-                [handle]
+                `INSERT INTO outreach_threads (campaign_id, influencer_id, status, max_authorized_budget) 
+                 VALUES ($1, $2, 'PENDING', 100)`,
+                [campaignId, influencerId]
             );
             console.log(`SUCCESS: Injected @${handle} into database. Thread status is PENDING.`);
         } else {
