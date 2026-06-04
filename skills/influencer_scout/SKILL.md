@@ -5,15 +5,11 @@ description: Autonomously scouts the web for Instagram influencers and injects t
 
 When the user asks you to find, scout, or queue up influencers for a specific niche, follow this strict protocol:
 
-### Step 1: Scout using the Terminal
-Run the following local command to execute the internal Instagram scout script. This leverages the user's authenticated Puppeteer session to bypass Cloudflare and directly query Instagram's search API.
-```bash
-npx ts-node scripts/scout_instagram.ts "<niche>"
-```
-The script will return a JSON list of users matching the niche.
+### Step 1: Scout using Web/Browser Tools
+Use your native `web_search` or `browser` tools to hunt for Instagram accounts that match the user's requested niche. Do NOT try to run a local terminal command for this step. Use your internet access to find lists, articles, or direct Instagram profiles of influencers that fit the criteria.
 
-### Step 2: Review Results
-Review the JSON array of influencers. Identify their exact handles and their follower counts from the output.
+### Step 2: Extract
+From your search results, pull out the influencer's exact Instagram handle, their specific niche, and their estimated follower count. Ensure the handle is accurate.
 
 ### Step 3: Inject
 For every valid influencer handle you find, run the following local command to execute the injection script:
