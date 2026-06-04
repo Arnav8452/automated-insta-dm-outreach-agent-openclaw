@@ -5,24 +5,20 @@ description: Autonomously scouts the web for Instagram influencers and injects t
 
 When the user asks you to find, scout, or queue up influencers for a specific niche, follow this strict protocol:
 
-### Step 1: Scout using Web/Browser Tools
-Use your native `web_search` or `browser` tools to hunt for Instagram accounts that match the user's requested niche. Use your internet access to find lists, articles, or directories of influencers.
-**ONLY USE WHEN NEEDED:** If you need to search Instagram directly and hit login walls, you may use the following local terminal command to execute the internal Puppeteer scout script, which leverages the user's authenticated session:
-```bash
-npx ts-node scripts/scout_instagram.ts "<niche>"
-```
+### Step 1: Scout (Reasoning & Acting)
+*   **Action:** Use the `web_search` tool to search for lists, articles, or directories of top Instagram influencers in the user's requested niche.
+*   **Alternative:** ONLY IF you specifically need to bypass Instagram's login wall to search directly, use your `Exec` tool to run: `powershell -Command "npx ts-node scripts/scout_instagram.ts '<niche>'"`
 
-### Step 2: Extract
-Use your native `web_fetch` or `browser` tool to read the webpage contents. Pull out each account's exact Instagram handle, niche, and estimated follower count. Do NOT try to run a local script for this step.
+### Step 2: Extract (Reasoning & Acting)
+*   **Action:** Use the `web_fetch` tool to read the contents of the URLs you found in Step 1.
+*   **Reasoning:** Analyze the text to identify the exact Instagram handle, niche, and estimated follower count of each influencer. Do NOT try to run any local scripts for this step.
 
-### Step 3: Inject
-For every valid influencer handle you find, run the following local command to execute the injection script:
-```bash
-npx ts-node scripts/inject_scouted_lead.ts "<handle>" "<niche>" "<followers>"
-```
+### Step 3: Inject (Reasoning & Acting)
+*   **Action:** For every valid influencer handle you extracted, use your `Exec` tool to run the injection script.
+*   **Command:** `powershell -Command "npx ts-node scripts/inject_scouted_lead.ts '<handle>' '<niche>' '<followers>'"`
 
 ### Important Rules
 1. Do not include the `@` symbol in the `<handle>` argument when injecting.
-2. The injection script will safely handle duplicates natively in PostgreSQL. You do not need to query the database manually before injecting.
-3. Once injected, the autonomous Cron Job (`Campaign Orchestrator`) will automatically detect the new `PENDING` threads and take over the DM automation. You do not need to send the messages yourself during the scouting phase.
-4. **DO NOT** attempt to set or pass environment variables (like `DATABASE_URL`) in your command. The scripts are hardcoded to correctly fall back to the local database when running natively. Just run the exact raw command provided.
+2. The injection script safely handles duplicates natively in PostgreSQL. You do not need to check the database manually first.
+3. Once injected, the autonomous `Campaign Orchestrator` cron job automatically detects `PENDING` threads and starts DM automation. Do not send messages yourself.
+4. **DO NOT** attempt to set environment variables (like `DATABASE_URL`) in your `Exec` command. Just run the exact raw command provided.
