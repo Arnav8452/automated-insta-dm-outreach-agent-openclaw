@@ -64,9 +64,10 @@ $env:NODE_TLS_REJECT_UNAUTHORIZED="0"; npm start
 Open your OpenClaw Chat UI and give the agent its first assignment:
 > *"Scout 3 fitness influencers on Instagram, extract their handles and estimated followers, and queue them up for outreach."*
 
-**The Result:** Download and open locally if not visible clearly
+**The Result:**
 ![OpenClaw Agent Execution](assets/chat_demo.png)
 ![OpenClaw Scout Execution](assets/scout_demo.png)
+![OpenClaw Injection Execution](assets/injection_demo.png)
 
 ---
 
