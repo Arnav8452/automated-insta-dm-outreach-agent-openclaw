@@ -9,7 +9,7 @@ When the user asks you to find, scout, or queue up influencers for a specific ni
 Use your native `web_search` or `browser` tools to hunt for Instagram accounts that match the user's requested niche. Do NOT try to run a local terminal command for this step. Use your internet access to find lists, articles, or direct Instagram profiles of influencers that fit the criteria.
 
 ### Step 2: Extract
-From your search results, pull out the influencer's exact Instagram handle, their specific niche, and their estimated follower count. Ensure the handle is accurate.
+Use the browser-automation skill with Puppeteer. Pull out each account's handle, niche, and estimated follower count.
 
 ### Step 3: Inject
 For every valid influencer handle you find, run the following local command to execute the injection script:
