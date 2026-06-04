@@ -78,6 +78,10 @@ Open your OpenClaw Chat UI and give the agent its first assignment:
 If your agent or cron job crashes with this error, it means the PostgreSQL database is not running. 
 **Fix:** Ensure **Docker Desktop** is open and running on your machine, then open your terminal in this project folder and run `docker compose up -d`.
 
+### `Channel is required (no configured channels detected)`
+If the "Campaign Orchestrator" cron job crashes with this error, it means the job was accidentally configured to announce its completion but you haven't linked a Slack/Discord channel to your daemon.
+**Fix:** Open the OpenClaw Cron UI, click **Edit** on the job, and change **Delivery** to `none`. Alternatively, delete the job and recreate it using our `./scripts/register_cron.sh` script, which natively includes the `--no-deliver` flag to prevent this.
+
 ### Compiling OpenClaw from Source
 If `npm install openclaw` fails on your machine due to corporate proxies or Node engine mismatches, you can bypass the registry and build the engine natively from source:
 
