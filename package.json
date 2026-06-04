@@ -4,7 +4,7 @@
   "description": "Automated Instagram influencer outreach and negotiation engine.",
   "main": "index.js",
   "scripts": {
-    "start": "npx openclaw gateway --workspace .",
+    "start": "npx openclaw gateway run",
     "build": "tsc"
   },
   "dependencies": {

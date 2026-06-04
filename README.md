@@ -76,10 +76,10 @@ Finally, boot the native OpenClaw engine. The daemon will parse your `SOUL.md` p
 ```bash
 npm start
 ```
-*(This triggers `npx openclaw gateway --workspace .`)*
+*(This triggers `npx openclaw gateway run`)*
 
 > [!NOTE]
-> **Why `--workspace .` is critical:** OpenClaw typically runs from a global default workspace. By passing the `--workspace .` flag in our start script, we force the daemon to dynamically bind to *this* repository. This is how the engine seamlessly discovers our custom `SOUL.md` persona and the custom AgentSkills inside the local `skills/` directory without needing global installation!
+> **Workspace Configuration:** We have configured the global `openclaw.json` to point its workspace directly to this repository (`D:\openclaw_tool`). This ensures the daemon automatically discovers our custom `SOUL.md` persona and the custom AgentSkills inside the local `skills/` directory when it boots up!
 
 ---
 
