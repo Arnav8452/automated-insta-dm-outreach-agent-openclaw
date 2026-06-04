@@ -78,6 +78,9 @@ npm start
 ```
 *(This triggers `npx openclaw gateway --workspace .`)*
 
+> [!NOTE]
+> **Why `--workspace .` is critical:** OpenClaw typically runs from a global default workspace. By passing the `--workspace .` flag in our start script, we force the daemon to dynamically bind to *this* repository. This is how the engine seamlessly discovers our custom `SOUL.md` persona and the custom AgentSkills inside the local `skills/` directory without needing global installation!
+
 ---
 
 ## Troubleshooting: Compiling OpenClaw from Source
