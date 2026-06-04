@@ -13,7 +13,7 @@ npx ts-node scripts/scout_instagram.ts "<niche>"
 ```
 
 ### Step 2: Extract
-Use the browser-automation skill with Puppeteer. Pull out each account's handle, niche, and estimated follower count.
+Use your native `web_fetch` or `browser` tool to read the webpage contents. Pull out each account's exact Instagram handle, niche, and estimated follower count. Do NOT try to run a local script for this step.
 
 ### Step 3: Inject
 For every valid influencer handle you find, run the following local command to execute the injection script:
