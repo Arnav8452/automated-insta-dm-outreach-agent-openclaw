@@ -6,7 +6,11 @@ description: Autonomously scouts the web for Instagram influencers and injects t
 When the user asks you to find, scout, or queue up influencers for a specific niche, follow this strict protocol:
 
 ### Step 1: Scout using Web/Browser Tools
-Use your native `web_search` or `browser` tools to hunt for Instagram accounts that match the user's requested niche. Do NOT try to run a local terminal command for this step. Use your internet access to find lists, articles, or direct Instagram profiles of influencers that fit the criteria.
+Use your native `web_search` or `browser` tools to hunt for Instagram accounts that match the user's requested niche. Use your internet access to find lists, articles, or directories of influencers.
+**ONLY USE WHEN NEEDED:** If you need to search Instagram directly and hit login walls, you may use the following local terminal command to execute the internal Puppeteer scout script, which leverages the user's authenticated session:
+```bash
+npx ts-node scripts/scout_instagram.ts "<niche>"
+```
 
 ### Step 2: Extract
 Use the browser-automation skill with Puppeteer. Pull out each account's handle, niche, and estimated follower count.
