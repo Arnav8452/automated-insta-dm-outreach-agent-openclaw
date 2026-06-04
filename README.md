@@ -23,6 +23,19 @@ This project is a 100% local, production-ready Instagram influencer negotiation 
 5. **Multi-Turn Negotiation (Native AgentSkills & Cron)**
    - **Implemented via**: `SOUL.md` (Workspace Persona) & `skills/instagram_dm/SKILL.md` (AgentSkill)
    - Integrated with the native **OpenClaw Cron Scheduler**. The engine automatically wakes up to process leads and uses its built-in `exec` tool to run the Puppeteer automation script autonomously.
+## 🛠️ Custom ReAct Tools & AgentSkills
+
+To achieve full autonomy, we built a suite of custom **ReAct Tools** (executable scripts) and **AgentSkills** (AI logic) that the OpenClaw agent uses to interact with the world:
+
+### AgentSkills (AI Logic)
+- **`influencer_scout`**: Instructs the agent to act as a lead generation specialist, searching the web and injecting leads into the pipeline.
+- **`instagram_dm`**: Instructs the agent on how to process its own database queue, personalize pitches, negotiate budgets, and dispatch messages.
+
+### ReAct Tools (Native Scripts)
+- **`scout_instagram.ts`**: A headless Puppeteer tool that allows the AI to securely query Instagram's internal search API using your saved session cookies, completely bypassing Cloudflare blocks and scrapers.
+- **`get_pending_leads.ts`**: A database reader tool that allows the AI to natively query the PostgreSQL queue so it can autonomously pull its own workload without human intervention.
+- **`dm_sender.ts`**: A browser automation tool that allows the AI to securely drive a physical Chromium instance to dispatch Instagram DMs via the web UI.
+- **`inject_scouted_lead.ts`**: A pipeline tool that allows the AI to safely UPSERT new leads into the database and initialize `PENDING` threads.
 
 ---
 
