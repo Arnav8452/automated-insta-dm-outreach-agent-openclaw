@@ -13,7 +13,7 @@ async function getPendingLeads() {
             FROM outreach_threads t
             JOIN influencers i ON t.influencer_id = i.id
             WHERE t.status IN ('PENDING', 'AWAITING_REPLY')
-            LIMIT 5;
+            LIMIT 1;
         `;
         
         const res = await pgClient.query(query);
