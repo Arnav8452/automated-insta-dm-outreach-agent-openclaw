@@ -1,7 +1,8 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { TimeoutError } from 'puppeteer';
-import { Client } from 'pg';
+import { db } from '../src/db';
+import { logger } from '../src/logger';
 
 const handle = process.argv[2];
 const message = process.argv[3];
@@ -13,15 +14,13 @@ if (!handle || !message || !threadId) {
 }
 
 async function sendInstagramDm() {
-    // Connect locally so testing native Node execution works seamlessly
-    const pgClient = new Client({ connectionString: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/openclaw_db' });
-    await pgClient.connect();
     
+    let browser: any = null;
     try {
         puppeteer.use(StealthPlugin());
         
         // 1. Launch persistent context to maintain authentication cookies
-        const browser = await puppeteer.launch({
+        browser = await puppeteer.launch({
             userDataDir: "./browser_data/ig_session",
             headless: false, // Run in headful/visible mode natively on OS
             slowMo: 100, // Human-like delays between actions
@@ -96,15 +95,15 @@ async function sendInstagramDm() {
                         });
                     } catch (e) {
                         // Case 3: Follow + Waitlist (Private Account)
-                        await pgClient.query('BEGIN');
-                        await pgClient.query(
+                        await db.query('BEGIN');
+                        await db.query(
                             "UPDATE outreach_threads SET status = 'WAITLISTED', last_action_at = NOW() WHERE id = $1",
                             [threadId]
                         );
-                        await pgClient.query('COMMIT');
-                        console.log(`WAITLISTED: Follow request sent to @${handle}, waiting for approval.`);
+                        await db.query('COMMIT');
+                        logger.info(`WAITLISTED: Follow request sent to @${handle}, waiting for approval.`);
                         await browser.close();
-                        await pgClient.end();
+                        await db.end();
                         process.exit(0);
                     }
                 } else {
@@ -119,8 +118,9 @@ async function sendInstagramDm() {
                     } catch(e) {}
                     
                     if (requestedFound) {
-                        console.log(`STILL WAITLISTED: Follow request to @${handle} is still pending approval.`);
+                        logger.info(`STILL WAITLISTED: Follow request to @${handle} is still pending approval.`);
                         await browser.close();
+                        await db.end();
                         process.exit(0);
                     } else {
                         // Neither Follow, Message, nor Requested found
@@ -154,58 +154,62 @@ async function sendInstagramDm() {
             // Wait briefly for the network request to complete
             await new Promise(resolve => setTimeout(resolve, 2000));
             
-            await pgClient.query('BEGIN');
+            await db.query('BEGIN');
             // 6. Log the successfully sent message to the PostgreSQL context table
-            await pgClient.query(
+            await db.query(
                 "INSERT INTO messages (thread_id, sender_type, content) VALUES ($1, 'AGENT', $2)",
                 [threadId, message]
             );
             
             // Update the thread state to AWAITING_REPLY and schedule first auto-cadence
-            await pgClient.query(
+            await db.query(
                 "UPDATE outreach_threads SET status = 'AWAITING_REPLY', last_action_at = NOW(), next_followup_at = NOW() + INTERVAL '24 hours' WHERE id = $1",
                 [threadId]
             );
-            await pgClient.query('COMMIT');
+            await db.query('COMMIT');
             
-            console.log(`SUCCESS: Dispatched DM to @${handle}`);
+            logger.info(`SUCCESS: Dispatched DM to @${handle}`);
             
         } finally {
             await browser.close();
         }
             
     } catch (err: any) {
-        await pgClient.query('ROLLBACK').catch(() => {});
+        await db.query('ROLLBACK').catch(() => {});
         
+        try {
+            if (browser) {
+                const pages = await browser.pages();
+                if (pages.length > 0) {
+                    await pages[0].screenshot({ path: `assets/fatal_error_${Date.now()}.png` });
+                }
+            }
+        } catch (screenshotErr) {}
+
         const errorMsg = err.message || String(err);
         
         // 7. Safe Fallback: Flag rate limited state in PostgreSQL
         if (errorMsg.includes("Action Block")) {
             try {
-                await pgClient.query(
+                await db.query(
                     "UPDATE outreach_threads SET status = 'RATE_LIMITED' WHERE id = $1",
                     [threadId]
                 );
-            } catch (dbErr) {
-                // Ignore DB fallback error
-            }
+            } catch (dbErr) {}
         } else if (errorMsg.includes("They may not accept DMs")) {
             try {
-                // Mark thread as failed so the cron job doesn't endlessly retry it
-                await pgClient.query(
+                await db.query(
                     "UPDATE outreach_threads SET status = 'FAILED' WHERE id = $1",
                     [threadId]
                 );
-            } catch (dbErr) {
-                // Ignore DB fallback error
-            }
+            } catch (dbErr) {}
         }
         
-        console.error(`ERROR: Local execution failed: ${errorMsg}`);
+        logger.error(`Local execution failed: ${errorMsg}`);
         process.exit(1);
     } finally {
-        await pgClient.end();
+        await db.end();
     }
 }
 
-sendInstagramDm().catch(console.error);
+sendInstagramDm().catch(e => logger.error(e));

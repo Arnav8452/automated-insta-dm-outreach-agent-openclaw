@@ -1,11 +1,16 @@
 # Automated Instagram DM Outreach Agent (OpenClaw)
 
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Puppeteer](https://img.shields.io/badge/Puppeteer-40B5A4?style=for-the-badge&logo=puppeteer&logoColor=white)
+
 This project is a 100% local, production-ready Instagram influencer negotiation engine built natively on the [OpenClaw Framework](https://github.com/openclaw/openclaw). It adheres strictly to core data engineering principles to provide safe, rate-limited, and context-aware DM automation without relying on the official Meta API.
 
 ## 🌟 Core System Features Implemented
 
 1. **Smart Stealth DOM Pipeline**
-   - Completely evades Instagram Action Blocks and bot detectors using `puppeteer-extra-plugin-stealth` natively.
+   - Safely navigates Instagram's DOM using `puppeteer-extra-plugin-stealth` natively to prevent basic blocks.
    - Idempotent execution allows the agent to safely navigate complex DOM states without crashing.
 
 2. **Waitlist & Pipeline Management**
@@ -30,12 +35,22 @@ To achieve full autonomy, we built a suite of custom **ReAct Tools** (executable
 - **`instagram_dm`**: Instructs the agent on how to process its own database queue, personalize pitches, negotiate budgets, and dispatch messages.
 
 ### ReAct Tools (Native Scripts)
-- **`dm_sender.ts`**: A stealth browser automation tool that dispatches Instagram DMs natively via the web UI while evading bot detection.
+- **`dm_sender.ts`**: A stealth browser automation tool that dispatches Instagram DMs natively via the web UI using safety constraints.
 - **`check_replies.ts`**: An inbox scraper tool that navigates to active DM threads and natively extracts chat bubbles so the agent can read and counter-offer during active negotiations.
 - **`check_waitlist.ts`**: Queries the database to retrieve all influencers pending follow approval.
 - **`check_cadence.ts`**: Queries the database to fetch influencers due for an auto-cadence follow-up.
 - **`get_active_threads.ts`**: Allows the AI to natively query the PostgreSQL queue for active negotiations.
 - **`inject_scouted_lead.ts`**: Safely UPSERTs new leads into the database and initializes `PENDING` threads.
+
+---
+
+## 🛡️ Compliance & Safety
+
+**Responsible Automation Rules Enforced by the System:**
+*   **Hard Rate Limits:** The Campaign Orchestrator evaluates a maximum of 1 lead every 10 minutes. Do not attempt to run concurrent instances. This equates to a maximum of 144 DMs per day, well within safe limits.
+*   **Human-In-The-Loop Approval:** The AI agent is strictly barred from finalizing financial commitments. When an agreement is reached, the thread enters a `NEEDS_APPROVAL` state.
+*   **Opt-out Handling:** If a creator asks to stop or rejects an offer, the agent immediately sets the thread status to `FAILED`, removing them from the outreach queue permanently.
+*   **Bot Warnings:** While stealth plugins are used, automating Meta properties always carries risk. Test with a burner profile first.
 
 ---
 
@@ -48,7 +63,7 @@ Start the local PostgreSQL database, then log into your Instagram account once t
 ```powershell
 cp .env.example .env
 docker compose up -d
-npx ts-node scripts/login.ts
+node dist/scripts/login.js
 ```
 
 ### Step 2: Boot the OpenClaw Engine
@@ -63,7 +78,7 @@ Open a **second, separate PowerShell window** in the project folder to register 
 #### Option 1: Manual Ingestion
 If you have a curated list of targets, add them to `leads.csv` and run:
 ```powershell
-npx ts-node scripts/ingest_leads.ts
+node dist/scripts/ingest_leads.js
 ```
 
 #### Option 2: Live Agent Prompt (AI Scout)
@@ -74,7 +89,7 @@ Act as an expert Indian Influencer Marketing Scout. I need you to scout Instagra
 #### Option 3: Fully Autonomous Daily Cron Job
 Tell OpenClaw to wake up every morning at 9AM and find new leads automatically without you lifting a finger:
 ```powershell
-npx openclaw cron create "0 9 * * *" "use skill influencer_scout. Act as an expert Indian Influencer Marketing Scout. Scout Instagram to find 5 high-quality tech or AI influencers based in India with 10k to 150k followers. Extract their handles and followers, and inject them into the pipeline using 'inject_scouted_lead.ts' without the '@' symbol." --name "India Tech Lead Scout" --session isolated --no-deliver --light-context --tz "Asia/Kolkata"
+npx openclaw cron create "0 9 * * *" "use skill influencer_scout. Act as an expert Indian Influencer Marketing Scout. Scout Instagram to find 5 high-quality tech or AI influencers based in India with 10k to 150k followers. Extract their handles and followers, and inject them into the pipeline using 'inject_scouted_lead.js' without the '@' symbol." --name "India Tech Lead Scout" --session isolated --no-deliver --light-context --tz "Asia/Kolkata"
 ```
 
 ---
@@ -82,7 +97,7 @@ npx openclaw cron create "0 9 * * *" "use skill influencer_scout. Act as an expe
 ### Step 4: Register the Campaign Orchestrator
 Once leads are flowing into the queue, register the core orchestrator. This cron job runs every 10 minutes to process the queue, send initial DMs, read replies, and negotiate deals.
 ```powershell
-npx openclaw cron create "*/10 * * * *" "Run 'npx ts-node scripts/get_pending_leads.ts' to fetch the next active lead. If their status is PENDING, send a personalized initial pitch using 'npx ts-node scripts/dm_sender.ts \"<handle>\" ''<message>'' \"<thread_id>\"'. If their status is AWAITING_REPLY, run 'npx ts-node scripts/check_replies.ts \"<handle>\" \"<thread_id>\"' to read their response, and use your advanced negotiation logic (defined in SKILL.md) to either counter-offer or use 'update_thread_status.ts' to mark the thread as COMPLETED or FAILED." --name "Campaign Orchestrator" --session isolated --no-deliver --light-context --tz "UTC"
+npx openclaw cron create "*/10 * * * *" "Run 'node dist/scripts/get_pending_leads.js' to fetch the next active lead. If their status is PENDING, send a personalized initial pitch using 'node dist/scripts/dm_sender.js \"<handle>\" ''<message>'' \"<thread_id>\"'. If their status is AWAITING_REPLY, run 'node dist/scripts/check_replies.js \"<handle>\" \"<thread_id>\"' to read their response, and use your advanced negotiation logic (defined in SKILL.md) to either counter-offer or use 'node dist/scripts/update_thread_status.js' to mark the thread as COMPLETED or FAILED." --name "Campaign Orchestrator" --session isolated --no-deliver --light-context --tz "UTC"
 ```
 
 ### Step 5: Watch it Negotiate!
@@ -117,3 +132,11 @@ pnpm install
 pnpm openclaw setup
 pnpm build
 ```
+
+---
+
+## 🚀 Production Readiness
+This project has been heavily refactored for robust native production execution:
+- **Connection Pooling**: Uses a centralized `pg.Pool` (`src/db.ts`) so long-running cron jobs don't exhaust database connections or leak memory.
+- **Structured Logging**: Uses `winston` for centralized JSON logging. Errors are captured in `logs/error.log` and `logs/combined.log` for Datadog/ELK parsing.
+- **Pre-compiled Binaries**: The OpenClaw agent relies on fast, pre-compiled JavaScript (`node dist/scripts/...`) rather than executing raw TypeScript files on the fly.

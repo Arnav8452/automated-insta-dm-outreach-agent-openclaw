@@ -1,34 +1,54 @@
-import { Client } from 'pg';
+import { db } from '../src/db';
+import { logger } from '../src/logger';
 
 const handle = process.argv[2];
-const niche = process.argv[3] || 'general';
-const followers = parseInt(process.argv[4] || '0', 10);
+const metadataStr = process.argv[3] || '{}';
 
 if (!handle) {
-    console.error("Usage: ts-node inject_scouted_lead.ts <handle> [niche] [estimated_followers]");
+    logger.error("Usage: node inject_scouted_lead.js <handle> '<metadata_json_string>'");
     process.exit(1);
 }
 
+let metadata: any = {};
+try {
+    metadata = JSON.parse(metadataStr);
+} catch (e) {
+    logger.warn("Warning: Could not parse metadata JSON. Using empty object.");
+}
+
+const followers = parseInt(metadata.followers || '0', 10);
+const bio = metadata.bio || '';
+const profileUrl = metadata.profile_url || '';
+const language = metadata.language || '';
+const geography = metadata.geography || '';
+const leadScore = parseInt(metadata.lead_score || '0', 10);
+const brandFitNotes = metadata.brand_fit_notes || '';
+
 async function injectLead() {
-    const pgClient = new Client({ connectionString: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/openclaw_db' });
-    await pgClient.connect();
     
     try {
-        await pgClient.query('BEGIN');
+        await db.query('BEGIN');
         
         // 1. Insert or update the target influencer using the correct 'influencers' table
-        const infRes = await pgClient.query(
-            `INSERT INTO influencers (handle, follower_count, metadata) 
-             VALUES ($1, $2, $3) 
+        const infRes = await db.query(
+            `INSERT INTO influencers (handle, follower_count, bio, profile_url, language, geography, lead_score, brand_fit_notes, metadata) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
              ON CONFLICT (handle) DO UPDATE 
-             SET follower_count = EXCLUDED.follower_count, metadata = EXCLUDED.metadata
+             SET follower_count = EXCLUDED.follower_count, 
+                 bio = EXCLUDED.bio, 
+                 profile_url = EXCLUDED.profile_url, 
+                 language = EXCLUDED.language, 
+                 geography = EXCLUDED.geography, 
+                 lead_score = EXCLUDED.lead_score, 
+                 brand_fit_notes = EXCLUDED.brand_fit_notes,
+                 metadata = EXCLUDED.metadata
              RETURNING id`,
-            [handle, followers, JSON.stringify({ niche })]
+            [handle, followers, bio, profileUrl, language, geography, leadScore, brandFitNotes, JSON.stringify(metadata)]
         );
         const influencerId = infRes.rows[0].id;
         
         // 2. Check if a thread already exists
-        const threadCheck = await pgClient.query(
+        const threadCheck = await db.query(
             "SELECT id FROM outreach_threads WHERE influencer_id = $1",
             [influencerId]
         );
@@ -36,12 +56,12 @@ async function injectLead() {
         if (threadCheck.rows.length === 0) {
             // Ensure a campaign exists before making a thread
             let campaignId: string;
-            const existingCampaign = await pgClient.query(`SELECT id FROM campaigns LIMIT 1`);
+            const existingCampaign = await db.query(`SELECT id FROM campaigns LIMIT 1`);
             
             if (existingCampaign.rows.length > 0) {
                 campaignId = existingCampaign.rows[0].id;
             } else {
-                const campaignRes = await pgClient.query(`
+                const campaignRes = await db.query(`
                     INSERT INTO campaigns (name, total_budget) 
                     VALUES ('Automated Scouted Campaign', 10000.00) 
                     RETURNING id;
@@ -50,24 +70,24 @@ async function injectLead() {
             }
 
             // 3. Create a PENDING thread so the cron job picks it up
-            await pgClient.query(
+            await db.query(
                 `INSERT INTO outreach_threads (campaign_id, influencer_id, status, max_authorized_budget) 
                  VALUES ($1, $2, 'PENDING', 100)`,
                 [campaignId, influencerId]
             );
-            console.log(`SUCCESS: Injected @${handle} into database. Thread status is PENDING.`);
+            logger.info(`SUCCESS: Injected @${handle} into database. Thread status is PENDING.`);
         } else {
-            console.log(`SKIPPED: @${handle} already exists in active outreach threads.`);
+            logger.info(`SKIPPED: @${handle} already exists in active outreach threads.`);
         }
         
-        await pgClient.query('COMMIT');
+        await db.query('COMMIT');
     } catch (err: any) {
-        await pgClient.query('ROLLBACK').catch(() => {});
-        console.error(`ERROR: Failed to inject lead: ${err.message}`);
+        await db.query('ROLLBACK').catch(() => {});
+        logger.error(`Failed to inject lead: ${err.message}`);
         process.exit(1);
     } finally {
-        await pgClient.end();
+        await db.end();
     }
 }
 
-injectLead().catch(console.error);
+injectLead().catch(e => logger.error(e));

@@ -8,7 +8,7 @@ When you are instructed by the Campaign Orchestrator cron job to process pending
 ### Step 1: Check Database for Pending Leads
 First, fetch the list of pending leads that need outreach by using your native `exec` tool to run the following script:
 ```bash
-npx ts-node scripts/get_pending_leads.ts
+node dist/scripts/get_pending_leads.js
 ```
 This script will return a JSON list of threads where the status is `PENDING` or `AWAITING_REPLY`.
 
@@ -18,24 +18,24 @@ Review the JSON output. You must pick **ONLY THE FIRST LEAD** returned. Do NOT p
 **If the status is `PENDING` (New Lead):**
 Draft a highly personalized initial pitch for that specific lead (using your core Persona and the `max_authorized_budget` limit), then run the DM sender script natively:
 ```bash
-npx ts-node scripts/dm_sender.ts "<influencer_handle>" '<message_content>' "<thread_id>"
+node dist/scripts/dm_sender.js "<influencer_handle>" '<message_content>' "<thread_id>"
 ```
 
 **If the status is `AWAITING_REPLY` (Active Negotiation):**
 You must read the chat history to see if they replied to your previous message. Run the inbox scraper natively:
 ```bash
-npx ts-node scripts/check_replies.ts "<influencer_handle>" "<thread_id>"
+node dist/scripts/check_replies.js "<influencer_handle>" "<thread_id>"
 ```
 The script will output the recent chat history as JSON. Read it carefully.
 - **If they haven't replied:** Do nothing. We will wait.
-- **If they want to negotiate:** Draft a counter-offer within your `max_authorized_budget` constraint and send it using the `dm_sender.ts` script.
-- **If they accepted a deal:** Clear them from the queue by setting the thread to COMPLETED:
+- **If they want to negotiate:** Draft a counter-offer within your `max_authorized_budget` constraint and send it using the `dm_sender.ts` script. Your absolute opening offer must be around 50% of the max budget, and you must require at least 1 Reel and 1 Story as deliverables.
+- **If you reach a mutual agreement on price and deliverables:** DO NOT send a final confirmation DM yet. Instead, halt the negotiation and push the thread to a human for approval by updating the status:
   ```bash
-  npx ts-node scripts/update_thread_status.ts "<thread_id>" "COMPLETED"
+  node dist/scripts/update_thread_status.js "<thread_id>" "NEEDS_APPROVAL" "<agreed_amount>" "<deliverables>"
   ```
 - **If they rejected or asked to stop:** Clear them from the queue by setting the thread to FAILED:
   ```bash
-  npx ts-node scripts/update_thread_status.ts "<thread_id>" "FAILED"
+  node dist/scripts/update_thread_status.js "<thread_id>" "FAILED"
   ```
 
 ### Important Execution Rules

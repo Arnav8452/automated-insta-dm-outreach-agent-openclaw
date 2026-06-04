@@ -15,6 +15,12 @@ CREATE TABLE influencers (
     follower_count INT,
     engagement_rate DECIMAL(5, 2),
     estimated_cpm DECIMAL(10, 2),
+    bio TEXT,
+    profile_url VARCHAR(500),
+    language VARCHAR(50),
+    geography VARCHAR(100),
+    lead_score INT,
+    brand_fit_notes TEXT,
     metadata JSONB
 );
 
@@ -25,6 +31,8 @@ CREATE TABLE outreach_threads (
     status VARCHAR(50) DEFAULT 'PENDING',
     max_authorized_budget DECIMAL(10, 2) NOT NULL,
     current_offer DECIMAL(10, 2) DEFAULT NULL,
+    final_offer DECIMAL(10, 2) DEFAULT NULL,
+    deliverables_agreed_upon TEXT,
     last_action_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     next_followup_at TIMESTAMP WITH TIME ZONE,
     UNIQUE(campaign_id, influencer_id)

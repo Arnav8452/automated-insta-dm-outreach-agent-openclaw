@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { Client } from 'pg';
+import { db } from '../src/db';
+import { logger } from '../src/logger';
 
 const handle = process.argv[2];
 const threadId = process.argv[3];
@@ -11,13 +12,12 @@ if (!handle || !threadId) {
 }
 
 async function checkReplies() {
-    const pgClient = new Client({ connectionString: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/openclaw_db' });
-    await pgClient.connect();
     
+    let browser: any = null;
     try {
         puppeteer.use(StealthPlugin());
         
-        const browser = await puppeteer.launch({
+        browser = await puppeteer.launch({
             userDataDir: "./browser_data/ig_session",
             headless: false,
             slowMo: 100,
@@ -49,7 +49,7 @@ async function checkReplies() {
                 });
             } catch (e) {
                 // If no message button, mark as FAILED
-                await pgClient.query("UPDATE outreach_threads SET status = 'FAILED' WHERE id = $1", [threadId]);
+                await db.query("UPDATE outreach_threads SET status = 'FAILED' WHERE id = $1", [threadId]);
                 throw new Error(`Could not find a Message button on @${handle}'s profile. Marked thread as FAILED.`);
             }
             
@@ -98,11 +98,11 @@ async function checkReplies() {
             });
             
             // Log new incoming messages to PostgreSQL
-            await pgClient.query('BEGIN');
+            await db.query('BEGIN');
             for (const msg of chatMessages) {
                 if (msg.sender === 'influencer') {
                     // Insert if not already exists (basic deduplication by exact text in this thread)
-                    await pgClient.query(`
+                    await db.query(`
                         INSERT INTO messages (thread_id, sender_type, content) 
                         SELECT $1, 'INFLUENCER', $2
                         WHERE NOT EXISTS (
@@ -111,7 +111,7 @@ async function checkReplies() {
                     `, [threadId, msg.text]);
                 }
             }
-            await pgClient.query('COMMIT');
+            await db.query('COMMIT');
             
             // Output JSON for the Agent to read
             console.log(JSON.stringify(chatMessages, null, 2));
@@ -120,12 +120,22 @@ async function checkReplies() {
             await browser.close();
         }
     } catch (err: any) {
-        await pgClient.query('ROLLBACK').catch(() => {});
-        console.error(`ERROR: Local execution failed: ${err.message}`);
+        await db.query('ROLLBACK').catch(() => {});
+        
+        try {
+            if (browser) {
+                const pages = await browser.pages();
+                if (pages.length > 0) {
+                    await pages[0].screenshot({ path: `assets/fatal_error_replies_${Date.now()}.png` });
+                }
+            }
+        } catch (screenshotErr) {}
+
+        logger.error(`Local execution failed: ${err.message}`);
         process.exit(1);
     } finally {
-        await pgClient.end();
+        await db.end();
     }
 }
 
-checkReplies().catch(console.error);
+checkReplies().catch(e => logger.error(e));
