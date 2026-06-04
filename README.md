@@ -68,6 +68,7 @@ Open your OpenClaw Chat UI and give the agent its first assignment:
 ![OpenClaw Agent Execution](assets/chat_demo.png)
 ![OpenClaw Scout Execution](assets/scout_demo.png)
 ![OpenClaw Injection Execution](assets/injection_demo.png)
+![OpenClaw Cron Orchestrator](assets/cron_demo.png)
 
 ---
 
