@@ -15,11 +15,11 @@ This script will return a JSON list of threads where the status is `PENDING` or 
 ### Step 2: Dispatch Messages
 Review the JSON output. For every lead returned in Step 1, draft a highly personalized pitch (using your core Persona and the `max_authorized_budget` limit from the database), then run the DM sender script natively:
 ```bash
-npx ts-node scripts/dm_sender.ts "<influencer_handle>" "<message_content>" "<thread_id>"
+npx ts-node scripts/dm_sender.ts "<influencer_handle>" '<message_content>' "<thread_id>"
 ```
 
 ### Important Execution Rules
-1. Do not use unescaped double quotes inside the `<message_content>` argument if they would break the bash string wrapper.
+1. **CRITICAL POWERSHELL RULE:** You must wrap the `<message_content>` argument in SINGLE QUOTES (`'...'`), NOT double quotes! Since this runs on Windows PowerShell, double quotes will cause it to crash if you include budget numbers (e.g. `$1000` evaluates as an empty variable). Use single quotes to ensure it treats the `$` as a literal string. If you use single quotes inside your message (e.g. `I'm`), escape them!
 2. You do NOT need to manually update PostgreSQL. The `dm_sender.ts` script will automatically log the message into the `messages` table and update the `outreach_threads` status to `AWAITING_REPLY` upon success.
 3. If the script throws an error mentioning "Action Blocked", gracefully pause the campaign and notify the user that we hit Meta's rate limits.
 4. **DO NOT** attempt to set or pass environment variables (like `DATABASE_URL`) in your `exec` command. The scripts natively handle their own database connections. Run the raw commands exactly as written.
