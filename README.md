@@ -26,60 +26,33 @@ This project is a 100% local, production-ready Instagram influencer negotiation 
 
 ---
 
-## Complete Guide: How to Run the Native Engine
+## 🚀 Quickstart (3 Easy Steps)
 
-### 1. Prerequisites
-- **Node.js v22.19+** (Strictly required by the OpenClaw 2026 release).
-- **Docker & Docker Compose** (For the Database and Redis locking).
-- The official `openclaw` package installed globally or locally.
+Get your AI outreach agent running in under 5 minutes!
 
-### 2. Configure Environment Variables
-Copy the example environment file and insert your free-tier LLM API keys:
-```bash
+### Step 1: Spin up the Database & Save your Login
+Start the local PostgreSQL database, then log into your Instagram account once to securely save your session cookie.
+```powershell
 cp .env.example .env
-```
-
-### 3. Boot the Core Infrastructure
-Start the local PostgreSQL State Machine and Redis Distributed Lock Manager:
-```bash
 docker compose up -d
-```
-
-### 4. Authenticate Instagram Locally
-Because we bypass the official Meta API, you must log into Instagram once so Puppeteer can save your session cookies safely to your hard drive.
-```bash
 npx ts-node scripts/login.ts
 ```
-*Log into the Chromium window that pops up, then press Ctrl+C in your terminal.*
 
-### 5. Add Target Leads (Two Methods)
-
-**Method A: Targeted Manual Injection (CSV)**
-Populate the system with specific targets by editing the `leads.csv` file, then run:
-```bash
-npx ts-node scripts/ingest_leads.ts leads.csv
-```
-
-**Method B: Autonomous AI Scouting**
-Simply boot the OpenClaw Daemon (Step 7) and chat with the bot in your terminal or web UI:
-> *"Find me 5 fitness influencers with 10k-50k followers and queue them up for outreach."*
-The `influencer_scout` skill will autonomously search the web and inject them into the database for you!
-
-### 6. Register the Background Scheduler
-Hook into the native OpenClaw Gateway scheduler to wake the agent every 10 minutes:
-```bash
-./scripts/register_cron.sh
-```
-
-### 7. Start the OpenClaw Daemon
-Finally, boot the native OpenClaw engine. The daemon will parse your `SOUL.md` persona, read your `SKILL.md` instructions, and autonomously manage the influencer negotiations!
+### Step 2: Boot the OpenClaw Engine & Background Scheduler
+Register the background cron job that will manage all your DM negotiations, then start the OpenClaw Gateway daemon!
 ```powershell
+npx openclaw cron create "*/10 * * * *" "Check the PostgreSQL database for any outreach_threads where status is 'PENDING' or 'AWAITING_REPLY'. If they need a message sent, draft it using the max_authorized_budget constraint, and use the 'exec' tool to run scripts/dm_sender.ts to physically send the DM via Puppeteer." --name "Campaign Orchestrator" --session isolated --no-deliver --light-context --tz "UTC"
 $env:NODE_TLS_REJECT_UNAUTHORIZED="0"; npm start
 ```
-*(This triggers `npx openclaw gateway run` with strict SSL disabled for proxied environments)*
-
 > [!NOTE]
-> **Linking OpenClaw to this Tool:** We have configured the global `openclaw.json` to point its workspace directly to this repository. Running this command physically **links your global OpenClaw daemon to this tool**, ensuring it automatically discovers our custom `SOUL.md` persona and the custom AgentSkills inside the local `skills/` directory when it boots up!
+> **Linking OpenClaw to this Tool:** The `npm start` command above overrides the default `openclaw gateway` behavior to permanently link the daemon to this repository. This allows it to automatically discover our custom `SOUL.md` persona and AgentSkills!
+
+### Step 3: Command the Agent!
+Open your OpenClaw Chat UI and give the agent its first assignment:
+> *"Scout 3 fitness influencers on Instagram, extract their handles and estimated followers, and queue them up for outreach."*
+
+**The Result:**
+![OpenClaw Agent Execution](assets/chat_demo.png)
 
 ---
 
