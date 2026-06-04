@@ -74,7 +74,7 @@ Act as an expert Indian Influencer Marketing Scout. I need you to scout Instagra
 #### Option 3: Fully Autonomous Daily Cron Job
 Tell OpenClaw to wake up every morning at 9AM and find new leads automatically without you lifting a finger:
 ```powershell
-npx openclaw cron create "0 9 * * *" "Scout Instagram to find 5 new tech/AI influencers. Extract their handles, and inject them into the pipeline using 'inject_scouted_lead.ts'." --name "AI Lead Scout" --session isolated --no-deliver --light-context --tz "UTC"
+npx openclaw cron create "0 9 * * *" \"use skill influencer_scout. Act as an expert Indian Influencer Marketing Scout. Scout Instagram to find 5 high-quality tech or AI influencers based in India with 10k to 150k followers. Extract their handles and followers, and inject them into the pipeline using 'inject_scouted_lead.ts' without the '@' symbol.\" --name "India Tech Lead Scout" --session isolated --no-deliver --light-context --tz "Asia/Kolkata"
 ```
 
 ---
