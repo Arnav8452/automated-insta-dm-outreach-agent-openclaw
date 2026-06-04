@@ -73,13 +73,13 @@ Hook into the native OpenClaw Gateway scheduler to wake the agent every 10 minut
 
 ### 7. Start the OpenClaw Daemon
 Finally, boot the native OpenClaw engine. The daemon will parse your `SOUL.md` persona, read your `SKILL.md` instructions, and autonomously manage the influencer negotiations!
-```bash
-npm start
+```powershell
+$env:NODE_TLS_REJECT_UNAUTHORIZED="0"; npm start
 ```
-*(This triggers `npx openclaw gateway run`)*
+*(This triggers `npx openclaw gateway run` with strict SSL disabled for proxied environments)*
 
 > [!NOTE]
-> **Workspace Configuration:** We have configured the global `openclaw.json` to point its workspace directly to this repository (`D:\openclaw_tool`). This ensures the daemon automatically discovers our custom `SOUL.md` persona and the custom AgentSkills inside the local `skills/` directory when it boots up!
+> **Linking OpenClaw to this Tool:** We have configured the global `openclaw.json` to point its workspace directly to this repository. Running this command physically **links your global OpenClaw daemon to this tool**, ensuring it automatically discovers our custom `SOUL.md` persona and the custom AgentSkills inside the local `skills/` directory when it boots up!
 
 ---
 
