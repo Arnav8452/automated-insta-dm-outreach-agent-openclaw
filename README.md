@@ -61,7 +61,7 @@ $env:NODE_TLS_REJECT_UNAUTHORIZED="0"; npm start
 Once leads are queued, the Agent will automatically check for replies on its heartbeat schedule. When it detects a message, it uses its LLM brain to negotiate the deal!
 
 **The Result:**
-![OpenClaw Agent Negotiation](assets/chat_demo.png)
+![OpenClaw Agent Negotiation](assets/whatsapp_demo.jpeg)
 ![OpenClaw Scout Execution](assets/scout_demo.png)
 ![OpenClaw Injection Execution](assets/injection_demo.png)
 ![OpenClaw Cron Orchestrator](assets/cron_demo.png)
