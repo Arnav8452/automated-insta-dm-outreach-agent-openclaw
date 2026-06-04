@@ -70,7 +70,13 @@ Open your OpenClaw Chat UI and give the agent its first assignment:
 
 ---
 
-## Troubleshooting: Compiling OpenClaw from Source
+## 🛑 Troubleshooting Common Errors
+
+### `ECONNREFUSED 127.0.0.1:5432`
+If your agent or cron job crashes with this error, it means the PostgreSQL database is not running. 
+**Fix:** Ensure **Docker Desktop** is open and running on your machine, then open your terminal in this project folder and run `docker compose up -d`.
+
+### Compiling OpenClaw from Source
 If `npm install openclaw` fails on your machine due to corporate proxies or Node engine mismatches, you can bypass the registry and build the engine natively from source:
 
 ```bash
