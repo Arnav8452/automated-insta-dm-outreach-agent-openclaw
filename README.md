@@ -68,7 +68,7 @@ npx ts-node scripts/ingest_leads.ts
 
 #### Option 2: Live Agent Prompt (AI Scout)
 Ask the OpenClaw agent directly via the chat UI to hunt for influencers on the spot:
-> *"Scout Instagram to find 5 new tech/AI influencers. Extract their handles, and inject them into the pipeline using 'inject_scouted_lead.ts'."*
+> *"use skill influencer_scout, Scout Instagram to find 5 new tech/AI influencers. Extract their handles, and inject them into the pipeline using 'inject_scouted_lead.ts'."*
 
 #### Option 3: Fully Autonomous Daily Cron Job
 Tell OpenClaw to wake up every morning at 9AM and find new leads automatically without you lifting a finger:
