@@ -4,3 +4,9 @@ dist/
 browser_data/
 repo_clone/
 .DS_Store
+*.log
+*.csv
+scripts/*.js
+scripts/test_*.ts
+scripts/test_*.js
+.openclaw/
