@@ -23,3 +23,4 @@ npx ts-node scripts/dm_sender.ts "<influencer_handle>" '<message_content>' "<thr
 2. You do NOT need to manually update PostgreSQL. The `dm_sender.ts` script will automatically log the message into the `messages` table and update the `outreach_threads` status to `AWAITING_REPLY` upon success.
 3. If the script throws an error mentioning "Action Blocked", gracefully pause the campaign and notify the user that we hit Meta's rate limits.
 4. **DO NOT** attempt to set or pass environment variables (like `DATABASE_URL`) in your `exec` command. The scripts natively handle their own database connections. Run the raw commands exactly as written.
+5. The `dm_sender.ts` script takes time because it physically drives a browser. If your `exec` tool returns "Command still running...", it means the script successfully launched in the background. **DO NOT** attempt to run `process list` or check its status. Simply consider it successfully dispatched and move on to the next lead.
